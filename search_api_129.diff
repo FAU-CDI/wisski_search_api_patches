@@ -1,0 +1,73 @@
+diff --git a/src/Plugin/search_api/datasource/ContentEntity.php b/src/Plugin/search_api/datasource/ContentEntity.php
+index 1683406b..6483b664 100644
+--- a/src/Plugin/search_api/datasource/ContentEntity.php
++++ b/src/Plugin/search_api/datasource/ContentEntity.php
+@@ -650,7 +650,9 @@ class ContentEntity extends DatasourcePluginBase implements PluginFormInterface
+     // Make sure not to overwrite any options not included in the form (like
+     // "disable_db_tracking") by adding any existing configuration back to the
+     // new values.
+-    $this->setConfiguration($form_state->getValues() + $this->configuration);
++    // WISSKI: Do not allow configuration override of the configuration
++    // TODO: Is this still needed?
++    $this->setConfiguration($form_state->getValues());
+   }
+ 
+   /**
+@@ -674,8 +676,7 @@ class ContentEntity extends DatasourcePluginBase implements PluginFormInterface
+   public function getItemId(ComplexDataInterface $item) {
+     if ($entity = $this->getEntity($item)) {
+       $langcode = $entity->language()->getId();
+-      if (isset($this->getBundles()[$entity->bundle()])
+-          && isset($this->getLanguages()[$langcode])) {
++      if (isset($this->getBundles()[$entity->bundle()])) {
+         return $entity->id() . ':' . $langcode;
+       }
+     }
+@@ -791,7 +792,8 @@ class ContentEntity extends DatasourcePluginBase implements PluginFormInterface
+     // on large data sets. This allows for better control over what tables are
+     // included in the query.
+     // If no base table is present, then perform an entity query instead.
+-    if ($entity_type->getBaseTable()
++    // WISSKI: Never use this tracking.
++    if (false && $entity_type->getBaseTable()
+         && empty($this->configuration['disable_db_tracking'])) {
+       $select = $this->getDatabaseConnection()
+         ->select($entity_type->getBaseTable(), 'base_table')
+@@ -852,7 +854,9 @@ class ContentEntity extends DatasourcePluginBase implements PluginFormInterface
+         // off. (This will cause an infinite loop if anyone ever wants to index
+         // Search API tasks in an index, so check for that to be on the safe
+         // side.)
+-        if (isset($last_ids[$context_key])
++        // WISSKI: Don't use this
++        // TODO: Is this still needed?
++       if (false && isset($last_ids[$context_key])
+             && $last_ids[$context_key]['page'] == ($page - 1)
+             && $this->getEntityTypeId() !== 'search_api_task') {
+           $select->condition($entity_id, $last_ids[$context_key]['last_id'], '>');
+@@ -908,6 +912,8 @@ class ContentEntity extends DatasourcePluginBase implements PluginFormInterface
+     }
+ 
+     /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
++
++    /*
+     foreach ($this->getEntityStorage()->loadMultiple($entity_ids) as $entity_id => $entity) {
+       $translations = array_keys($entity->getTranslationLanguages());
+       $translations = array_intersect($translations, $enabled_languages);
+@@ -922,6 +928,17 @@ class ContentEntity extends DatasourcePluginBase implements PluginFormInterface
+         $item_ids[] = "$entity_id:$langcode";
+       }
+     }
++    */
++
++    // WISSKI: avoid loading all the entities
++    // because that would mean we lose a lot of performance.
++    $active_langcodes = \Drupal::languageManager()->getLanguages();
++    foreach($entity_ids as $entity_id){
++      foreach ($active_langcodes as $al) {
++        $langcode = $al->getId();
++        $item_ids[] = "$entity_id:$langcode";
++      }
++    }
+ 
+     if (Utility::isRunningInCli()) {
+       // When running in the CLI, this might be executed for all entities from
